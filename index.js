@@ -68,8 +68,22 @@ var handlers = {
     },
 
     'LaunchRequest': function () {  // happens when the user launches the skill but does not say their first question or command
-        this.response.speak('Welcome Back! Did you just drink some water?').listen('Did you just drink some water?');
-        this.emit(":responseReady");
+        let outputSpeech = 'Welcome Back! Did you just drink some water?';
+        let repromptSpeech = 'Did you just drink some water?';
+        let hint = "Coffee is not water, Memo!"
+        if(supportsDisplay.call(this)){ // Make Display
+            //bodyTemplateMaker(pBodyTemplateType, pImg, pTitle, pText1, pText2, pOutputSpeech, pReprompt, pHint, pBackgroundIMG)
+            //bodyTemplateMaker.call(this, 7, mainImage, 'Time to play ' + skillQuizName + '!', null, null, speechOutput, reprompt, null, mainImgBlurBG);
+            let title = "Welcome to Water Check";
+            bodyTemplateMaker.call(this, 6, welcomeBackgroundImage, title, "text 1", "text 2", outputSpeech, repromptSpeech, hint, welcomeBackgroundImage);
+
+
+        }else{ // Audio only response
+            //Composes text to be read out, and keeps session open
+            this.response.speak(outputSpeech).listen(repromptSpeech);
+            //All responses are sent to the Alexa service
+            this.emit(":responseReady");
+        }
     },
 
     'LogDrinkIntent': function () {
@@ -131,7 +145,7 @@ var handlers = {
         console.log('~~~~~~~~~~~~~~~~~~');
     }
 };
-
+// Helper Functions
 function randomPhrase(myData) {
     // the argument is an array [] of words or phrases
 
@@ -140,4 +154,126 @@ function randomPhrase(myData) {
     i = Math.floor(Math.random() * myData.length);
 
     return(myData[i]);
+}
+
+function supportsDisplay() {
+    var hasDisplay =
+        this.event.context &&
+        this.event.context.System &&
+        this.event.context.System.device &&
+        this.event.context.System.device.supportedInterfaces &&
+        this.event.context.System.device.supportedInterfaces.Display
+
+    return hasDisplay;
+}
+
+
+function bodyTemplateTypePicker(pNum) {
+    var val;
+
+    switch (pNum) {
+        case 1:
+            val = new Alexa.templateBuilders.BodyTemplate1Builder();
+            break;
+        case 2:
+            val = new Alexa.templateBuilders.BodyTemplate2Builder();
+            break;
+        case 3:
+            val = new Alexa.templateBuilders.BodyTemplate3Builder();
+            break;
+        case 6:
+            val = new Alexa.templateBuilders.BodyTemplate6Builder();
+            break;
+        case 7:
+            val = new Alexa.templateBuilders.BodyTemplate7Builder();
+            break;
+        default:
+            val = null;
+    }
+    return val;
+}
+
+//Template makers
+function bodyTemplateMaker(pBodyTemplateType, pImg, pTitle, pText1, pText2, pOutputSpeech, pReprompt, pHint, pBackgroundIMG) {
+    var bodyTemplate = bodyTemplateTypePicker.call(this, pBodyTemplateType);
+    var template = bodyTemplate.setTitle(pTitle)
+        .build();
+
+    if (pBodyTemplateType != 7) {
+        //Text not supported in BodyTemplate7
+        bodyTemplate.setTextContent(makeRichText(pText1) || null, makeRichText(pText2) || null) //Add text or null
+    }
+
+    if (pImg) {
+        bodyTemplate.setImage(makeImage(pImg));
+    }
+
+    if (pBackgroundIMG) {
+        bodyTemplate.setBackgroundImage(makeImage(pBackgroundIMG));
+    }
+
+    this.response.speak(pOutputSpeech)
+        .renderTemplate(template)
+        .shouldEndSession(null); //Keeps session open without pinging user..
+
+    this.response.hint(pHint || null, "PlainText");
+    this.attributes.lastOutputResponse = pOutputSpeech;
+
+    if (pReprompt) {
+        this.response.listen(pReprompt); // .. but we will ping them if we add a reprompt
+    }
+
+    this.emit(':responseReady');
+}
+
+function listTemplateTypePicker(pNum) {
+    var val;
+
+    switch (pNum) {
+        case 1:
+            val = new Alexa.templateBuilders.ListTemplate1Builder();
+            break;
+        case 2:
+            val = new Alexa.templateBuilders.ListTemplate2Builder();
+            break;
+        default:
+            val = null;
+    }
+    return val;
+}
+
+function listTemplateMaker(pArray, pType, pTitle, pOutputSpeech, pQuiz, pBackgroundIMG) {
+    const listItemBuilder = new Alexa.templateBuilders.ListItemBuilder();
+    var listTemplateBuilder = listTemplateTypePicker(pType);
+
+    if (!pQuiz) {
+        for (let i = 0; i < pArray.length; i++) {
+            listItemBuilder.addItem(makeImage(pArray[i].imageURL), pArray[i].token, makePlainText(capitalizeFirstLetter(pArray[i].name)));
+        }
+    } else {
+        //Dont insert option name if playing the quiz ()
+        for (let i = 0; i < pArray.length; i++) {
+            listItemBuilder.addItem(makeImage(pArray[i].imageURL), pArray[i].token);
+        }
+    }
+
+    var listItems = listItemBuilder.build();
+    var listTemplate = listTemplateBuilder.setTitle(pTitle)
+        .setListItems(listItems)
+        .build();
+
+    if (pBackgroundIMG) {
+        listTemplateBuilder.setBackgroundImage(makeImage(pBackgroundIMG));
+    }
+
+    this.attributes.lastOutputResponse = pOutputSpeech;
+
+    this.response.speak(pOutputSpeech)
+        .renderTemplate(listTemplate)
+        .shouldEndSession(null);
+    this.emit(':responseReady');
+}
+
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
 }
