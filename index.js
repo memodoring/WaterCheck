@@ -9,6 +9,14 @@ exports.handler = function(event, context, callback) {
     alexa.execute();
 };
 
+
+//Helper shorthands for multi modal compatability
+const makePlainText = Alexa.utils.TextUtils.makePlainText;
+const makeImage = Alexa.utils.ImageUtils.makeImage;
+const makeRichText = Alexa.utils.TextUtils.makeRichText;
+const welcomeBackgroundImage = "https://s3.amazonaws.com/memodoring-images/WaterCheck_Welcome.png";
+
+
 var handlers = {
 
     'NewSession': function() {
